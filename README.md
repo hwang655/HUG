@@ -1,5 +1,5 @@
 # HUG
-a least square approximation (LSA) algorithm to estimate dependent Poisson and Hurdle graphical models.
+A least square approximation (LSA) algorithm to estimate dependent Poisson and Hurdle graphical models.
 
 This repository contains code needed to reproduce the article:
 
