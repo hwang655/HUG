@@ -1,0 +1,12 @@
+exportPattern("^[[:alpha:]]+")
+
+import(Matrix)
+import(foreach)
+import(doParallel)
+import(qlcMatrix)
+import(fields)
+import(mvtnorm)
+import(glmnet)
+import(huge)
+import(igraph)
+import(fields)
