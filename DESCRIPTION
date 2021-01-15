@@ -2,7 +2,7 @@ Package: HUG
 Type: Package
 Title: Dependent Graphical Model Estimation
 Version: 1.3
-Date: 2020-02-27
+Date: 2020-06-26
 Author: Jianyu Liu
 Maintainer: Jianyu Liu <liu.shufe@gmail.com>
 Description: This package implements a least square approximation (LSA) algorithm to estimate dependent Poisson and Hurdle graphical models.
@@ -10,4 +10,4 @@ Depends: Matrix, foreach, doParallel, qlcMatrix, fields, mvtnorm,
         glmnet, huge, igraph, fields, doSNOW
 License: GPL-2
 NeedsCompilation: no
-Packaged: 2020-02-27 22:01:09 UTC; hdwang
+Packaged: 2020-06-26 18:10:10 UTC; jianyu
