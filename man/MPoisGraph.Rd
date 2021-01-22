@@ -2,7 +2,7 @@
 \alias{MPoisGraph}
 \title{Fit a dependent Poisson graphical model}
 \description{
-Fit a dependent Hurdle graphical model via nodewise random effect Hurdle regression.
+Fit a dependent Poisson graphical model via nodewise random effect Poisson regression.
 }
 \usage{
 MPoisGraph(Y.r, Y.p, B.ini, Omega = NULL, nlambda = 50, lambda.max = 10, lambda.min.ratio = 0.01)
