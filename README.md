@@ -7,12 +7,10 @@ This repository contains code needed to reproduce the article:
 Liu, J., Wang, H. Sun, W., & Liu, Y. (2021). Prioritizing Autism Risk Genes using Personalized Graphical Models Estimated from Single Cell RNA-seq Data
 
 ## Overview
-========
 
 **HUG** is a data analysis package for estimating Poisson and Hurdle graphical models. The proposed graphical model is designed to be appropriately modeling sample dependence and possible zero-inflation in the data. The sample dependence means there is dependence across the units of analysis (e.g. individuals, cells). The zero-inflation refers to the case when the number of zeros is so large that the data do not readily fit standard distributions. The primary algorithm in this package is dependent Poisson graphical model and dependent Hurdle graphical model. For a detailed discussion of the algorithm see [Prioritizing Autism Risk Genes using Personalized Graphical Models Estimated from Single Cell RNA-seq Data](https://arxiv.org/).
 
 ## Installation
-========
 
 The `HUG` package is currently available using devtools
 
@@ -21,8 +19,7 @@ The `HUG` package is currently available using devtools
 devtools::install_github("hwang655/HUG")
 ```
 
-Example
-=======
+## Example
 
 ``` r
 library(HUG)
@@ -80,7 +77,7 @@ legend('bottomright', col=1:6, lty=1, pch=0:5, legend=names(acc))
 
 ```
 
-# Help and Support
+## Help and Support
 
 Additional documentation, examples and code revisions are coming soon.
 For questions, issues or feature requests please reach out to Haodong: <Haodong@ad.unc.edu>.
