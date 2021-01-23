@@ -1,0 +1,803 @@
+
+R version 3.6.2 (2019-12-12) -- "Dark and Stormy Night"
+Copyright (C) 2019 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> 
+> library(data.table)
+> library(ggplot2)
+> library(ggpubr)
+Loading required package: magrittr
+> # https://briatte.github.io/ggnet/
+> library(GGally)
+Registered S3 method overwritten by 'GGally':
+  method from   
+  +.gg   ggplot2
+> library(network)
+network: Classes for Relational Data
+Version 1.16.0 created on 2019-11-30.
+copyright (c) 2005, Carter T. Butts, University of California-Irvine
+                    Mark S. Handcock, University of California -- Los Angeles
+                    David R. Hunter, Penn State University
+                    Martina Morris, University of Washington
+                    Skye Bender-deMoll, University of Washington
+ For citation information, type citation("network").
+ Type help("network-package") to get started.
+
+> library(sna)
+Loading required package: statnet.common
+
+Attaching package: ‘statnet.common’
+
+The following object is masked from ‘package:base’:
+
+    order
+
+sna: Tools for Social Network Analysis
+Version 2.5 created on 2019-12-09.
+copyright (c) 2005, Carter T. Butts, University of California-Irvine
+ For citation information, type citation("sna").
+ Type help(package="sna") to get started.
+
+> 
+> theme_set(theme_classic())
+> 
+> args = commandArgs(TRUE)
+> args
+[1] "ind='5958'"
+> 
+> if (length(args) != 1) {
++   message("one argument is expected, use '5278' as default.\n")
++   ind = "5278"
++ }else{
++   eval(parse(text=args[[1]]))
++ }
+> 
+> ind
+[1] "5958"
+> 
+> ASD.list = c("5278", "5531")
+> control.list = c("4341", "5958")
+> 
+> if(ind %in% ASD.list){
++   status = "ASD"
++ }else if(ind %in% control.list){
++   status = "control"
++ }else{
++   stop("unknown ind.\n")
++ }
+> 
+> # ------------------------------------------------------------------------
+> # read in SFARI gene list
+> # ------------------------------------------------------------------------
+> 
+> sf = fread("SFARI-Gene_genes_05-19-2020release_06-06-2020export.csv")
+> dim(sf)
+[1] 943   9
+> sf[1:2,]
+   status gene-symbol                                            gene-name
+1:      9        ABAT                     4-aminobutyrate aminotransferase
+2:      9      ABCA10 ATP-binding cassette, sub-family A (ABC1), member 10
+        ensembl-id chromosome                               genetic-category
+1: ENSG00000183044         16 Rare Single Gene Mutation, Genetic Association
+2: ENSG00000154263         17                      Rare Single Gene Mutation
+   gene-score syndromic number-of-reports
+1:          3         0                 5
+2:          3         0                 1
+> 
+> table(sf$status)
+
+  9 
+943 
+> length(unique(sf$`gene-symbol`))
+[1] 943
+> table(sf$`gene-score`, useNA='ifany')
+
+   1    2    3 <NA> 
+ 192  201  471   79 
+> table(sf$`syndromic`, useNA='ifany')
+
+  0   1 
+825 118 
+> 
+> table(sf$`gene-score`, sf$`syndromic`, useNA='ifany')
+      
+         0   1
+  1    192   0
+  2    192   9
+  3    441  30
+  <NA>   0  79
+> 
+> # ------------------------------------------------------------------------
+> # read in graph estimation results
+> # ------------------------------------------------------------------------
+> 
+> path1 = 'edge found/catalysis precedes all ebic edges'
+> path1 = sprintf("%s/%s_velmeshev_%s", path1, ind, status)
+> 
+> fnms = list.files(path=path1)
+> dhurdF = grep("^dep_hurd_opt_graphs", fnms, value=TRUE)
+> dpoisF = grep("^dep_pois_opt_graphs", fnms, value=TRUE)
+> genesF = grep("genes1500_genes_Velmeshev_", fnms, value=TRUE)
+> 
+> dhurdF
+[1] "dep_hurd_opt_graphs_5958_catalysis-precedes_glasso0.7_995edges.rData"
+> dpoisF
+[1] "dep_pois_opt_graphs_5958_catalysis-precedes_glasso0.7_792edges.rData"
+> genesF
+[1] "genes1500_genes_Velmeshev_5958_5cluster_catalysis-precedes.rData"
+> 
+> load(file.path(path1, genesF))
+> ls()
+ [1] "args"         "ASD.list"     "control.list" "dhurdF"       "dpoisF"      
+ [6] "fnms"         "genes.now"    "genesF"       "ind"          "path1"       
+[11] "sf"           "status"      
+> 
+> load(file.path(path1, dhurdF))
+> ls()
+ [1] "args"               "ASD.list"           "control.list"      
+ [4] "dhurdF"             "dpoisF"             "fnms"              
+ [7] "genes.now"          "genesF"             "ind"               
+[10] "opt_graph_dep.hurd" "path1"              "sf"                
+[13] "status"            
+> 
+> load(file.path(path1, dpoisF))
+> ls()
+ [1] "args"               "ASD.list"           "control.list"      
+ [4] "dhurdF"             "dpoisF"             "fnms"              
+ [7] "genes.now"          "genesF"             "ind"               
+[10] "opt_graph_dep.hurd" "opt_graph_dep.pois" "path1"             
+[13] "sf"                 "status"            
+> 
+> length(genes.now)
+[1] 1500
+> genes.now[1:5]
+[1] "NRG3"  "FGF14" "DLG2"  "SYNJ1" "GRIK2"
+> 
+> dim(opt_graph_dep.hurd)
+[1] 995   2
+> dim(opt_graph_dep.pois)
+[1] 792   2
+> 
+> opt_graph_dep.hurd[1:2,]
+     [,1]    [,2]   
+[1,] "PTPRD" "NRG3" 
+[2,] "GRIK2" "FGF14"
+> opt_graph_dep.pois[1:2,]
+     [,1]    [,2]  
+[1,] "PTPRD" "NRG3"
+[2,] "KCNH7" "NRG3"
+> 
+> fun1 <- function(v){paste(sort(v), collapse=":")}
+> pairs.dhurd = apply(opt_graph_dep.hurd, 1, fun1)
+> pairs.dpois = apply(opt_graph_dep.pois, 1, fun1)
+> 
+> length(unique(pairs.dhurd))
+[1] 995
+> length(unique(pairs.dpois))
+[1] 792
+> 
+> length(intersect(pairs.dhurd,pairs.dpois))
+[1] 759
+> 
+> # ------------------------------------------------------------------------
+> # add SFARI information to graph model
+> # ------------------------------------------------------------------------
+> 
+> d_dhurd = sort(table(c(opt_graph_dep.hurd)), decreasing=TRUE)
+> d_dhurd[1:10]
+
+   PTPRD  GALNTL6    ERBB4     GAD1    GRIK2    PTPRM    KCNC2   SLC6A1 
+      47       45       43       40       39       38       33       32 
+CACNA2D1    PTPRT 
+      31       31 
+> 
+> length(d_dhurd)
+[1] 290
+> summary(as.numeric(d_dhurd))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.000   1.000   3.000   6.862   9.000  47.000 
+> d_dhurd = data.frame(gene=names(d_dhurd), d=as.numeric(d_dhurd), 
++                      stringsAsFactors = FALSE)
+> 
+> dim(d_dhurd)
+[1] 290   2
+> d_dhurd[1:2,]
+     gene  d
+1   PTPRD 47
+2 GALNTL6 45
+> 
+> table(sf$`gene-symbol` %in% genes.now)
+
+FALSE  TRUE 
+  780   163 
+> table(sf$`gene-symbol` %in% d_dhurd$gene)
+
+FALSE  TRUE 
+  882    61 
+> 
+> w2kp = which(sf$`gene-symbol` %in% genes.now)
+> table(sf$`gene-score`[w2kp], sf$`syndromic`[w2kp], useNA='ifany')
+      
+        0  1
+  1    44  0
+  2    28  0
+  3    70  7
+  <NA>  0 14
+> 
+> w2kp = which(sf$`gene-symbol` %in% d_dhurd$gene)
+> table(sf$`gene-score`[w2kp], sf$`syndromic`[w2kp], useNA='ifany')
+      
+        0  1
+  1    12  0
+  2    15  0
+  3    26  3
+  <NA>  0  5
+> 
+> sf$score = sf$`gene-score`
+> sf$score[which(sf$syndromic==1)] = 3
+> table(sf$score, sf$`gene-score`, useNA = 'ifany')
+   
+      1   2   3 <NA>
+  1 192   0   0    0
+  2   0 192   0    0
+  3   0   9 471   79
+> table(sf$score, sf$`syndromic`,  useNA = 'ifany')
+   
+      0   1
+  1 192   0
+  2 192   0
+  3 441 118
+> 
+> d_dhurd$SFARIscore = rep(0, nrow(d_dhurd))
+> wmat = which(d_dhurd$gene %in% sf$`gene-symbol`)
+> d_dhurd$SFARIscore[wmat] = sf$score[match(d_dhurd$gene[wmat],sf$`gene-symbol`)]
+> table(d_dhurd$SFARIscore)
+
+  0   1   2   3 
+229  12  15  34 
+> dim(d_dhurd)
+[1] 290   3
+> d_dhurd[1:2,]
+     gene  d SFARIscore
+1   PTPRD 47          0
+2 GALNTL6 45          0
+> 
+> summary(d_dhurd$d[d_dhurd$SFARIscore > 0])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.000   2.000   3.000   7.705  12.000  39.000 
+> summary(d_dhurd$d[d_dhurd$SFARIscore == 0])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.000   1.000   3.000   6.638   8.000  47.000 
+> 
+> wilcox.test(d_dhurd$d ~ d_dhurd$SFARIscore > 0)
+
+	Wilcoxon rank sum test with continuity correction
+
+data:  d_dhurd$d by d_dhurd$SFARIscore > 0
+W = 6196.5, p-value = 0.1689
+alternative hypothesis: true location shift is not equal to 0
+
+> wilcox.test(d_dhurd$d ~ d_dhurd$SFARIscore >=3)
+
+	Wilcoxon rank sum test with continuity correction
+
+data:  d_dhurd$d by d_dhurd$SFARIscore >= 3
+W = 4107.5, p-value = 0.5892
+alternative hypothesis: true location shift is not equal to 0
+
+> 
+> # ------------------------------------------------------------------------
+> # get adjacency matrix for the subset of genes with any connection
+> # ------------------------------------------------------------------------
+> 
+> A = diag(nrow=nrow(d_dhurd), ncol=nrow(d_dhurd))
+> rownames(A) = colnames(A) = d_dhurd$gene
+> 
+> for(i in 1:nrow(opt_graph_dep.hurd)){
++   gene1 = opt_graph_dep.hurd[i,1]
++   gene2 = opt_graph_dep.hurd[i,2]
++   A[gene1, gene2] = 1
++   A[gene2, gene1] = 1
++ }
+> sum(c(A))
+[1] 2280
+> 
+> d_dhurd$SFARIscore_numeric = d_dhurd$SFARIscore
+> d_dhurd$SFARIscore = as.factor(d_dhurd$SFARIscore)
+> 
+> dA = solve(diag(rowSums(A))) %*% A
+> d_dhurd$SFARIscore_1s = dA %*% d_dhurd$SFARIscore_numeric
+> d_dhurd$SFARIscore_2s = dA %*% dA %*% d_dhurd$SFARIscore_numeric
+> 
+> cbp1 <- c("#E69F00", "#56B4E9", "#009E73","#CC79A7")
+> 
+> p1 = ggviolin(d_dhurd, x = "SFARIscore", y = c("SFARIscore_1s", "SFARIscore_2s"),
++          combine = TRUE, color = "SFARIscore", palette = "jco",
++          ylab = "SFARIscore after nb aggregation") + 
++   scale_colour_manual(values=cbp1)
+Scale for 'colour' is already present. Adding another scale for 'colour',
+which will replace the existing scale.
+> 
+> p3 = ggplot(d_dhurd, aes(x=SFARIscore_1s, y=SFARIscore_2s, 
++                          col=SFARIscore, shape=SFARIscore)) + 
++   geom_point() + scale_colour_manual(values=cbp1) +
++   scale_shape_manual(values=c(16, 17, 15, 1)) + 
++   theme(legend.position="top", legend.box = "horizontal")
+> 
+> pdf(sprintf("figures/dhurd_%s_catalysis-precedes_SFAR.pdf", ind), 
++     width=6.5, height=3.5)
+> print(ggarrange(p1, p3, ncol=2, nrow=1))
+> dev.off()
+null device 
+          1 
+> 
+> sc1 = d_dhurd$SFARIscore_1s >=1 | d_dhurd$SFARIscore_2s >=1
+> dd1 = d_dhurd[which(sc1 & d_dhurd$SFARIscore_numeric == 0),]
+> 
+> sc2 = d_dhurd$SFARIscore_1s >=2 | d_dhurd$SFARIscore_2s >=2
+> dd2 = d_dhurd[which(sc2 & d_dhurd$SFARIscore_numeric > 0),]
+> 
+> dim(dd1)
+[1] 28  6
+> dim(dd2)
+[1] 8 6
+> dd1
+          gene d SFARIscore SFARIscore_numeric SFARIscore_1s SFARIscore_2s
+89  CSGALNACT1 6          0                  0      1.142857     0.6100596
+91       KCNH5 6          0                  0      1.142857     0.9637730
+103       MSRA 5          0                  0      1.333333     0.6137161
+105        PAM 5          0                  0      1.500000     1.1477679
+112      CHSY3 4          0                  0      1.400000     0.8276471
+116     HS3ST4 4          0                  0      1.600000     0.9321143
+156    ATP5MC1 2          0                  0      1.000000     0.7111111
+162     CACNB4 2          0                  0      1.000000     0.8222222
+168       CYC1 2          0                  0      1.333333     0.8069444
+177       GNG3 2          0                  0      1.000000     0.6111111
+190      MOXD1 2          0                  0      1.000000     0.6886574
+193    OSBPL10 2          0                  0      1.000000     0.7750000
+206      ACYP2 1          0                  0      1.000000     0.8250000
+207      ADCY1 1          0                  0      1.000000     0.8250000
+209        APP 1          0                  0      1.000000     0.8250000
+210       ARF1 1          0                  0      1.500000     1.0000000
+212       ART3 1          0                  0      1.000000     0.8478261
+219        BSG 1          0                  0      1.500000     1.0000000
+224       CBLB 1          0                  0      1.000000     1.0882353
+225     CDC14B 1          0                  0      1.500000     1.1718750
+233       ENO2 1          0                  0      1.500000     1.0000000
+235      EPHA7 1          0                  0      1.000000     0.8250000
+239    GALNT18 1          0                  0      1.000000     1.0882353
+252      KCNH1 1          0                  0      1.000000     0.8250000
+257     MAN1C1 1          0                  0      1.000000     0.8250000
+266     PAPSS2 1          0                  0      1.500000     1.1718750
+272       PRNP 1          0                  0      1.500000     1.0000000
+276      REPS2 1          0                  0      1.000000     0.8250000
+> dd2
+       gene d SFARIscore SFARIscore_numeric SFARIscore_1s SFARIscore_2s
+154  ATP1A1 2          3                  3      2.000000     0.9967949
+160 CACNA1A 2          3                  3      2.000000     1.2377717
+173    EXT1 2          3                  3      2.333333     1.1923611
+176   GLRA2 2          3                  3      2.666667     1.5622958
+197   PRKCA 2          3                  3      2.000000     1.0194444
+221 CACNA1B 1          3                  3      3.000000     1.8437500
+229    DLG1 1          3                  3      2.500000     1.5978261
+285    SYN2 1          3                  3      3.000000     1.9218750
+> 
+> dd1$SFARIscore_2s = round(dd1$SFARIscore_2s,4)
+> fwrite(dd1[,-4], sep="\t", 
++        file=sprintf("output/dhurd_%s_catalysis-precedes_SFAR.tsv", ind))
+> 
+> # ------------------------------------------------------------------------
+> # try to draw the network, 1 step
+> # ------------------------------------------------------------------------
+> 
+> for(i in 1:nrow(dd1)){
++   dd1.A2 = A[,match(dd1$gene[i], d_dhurd$gene)]
++   length(dd1.A2)
++   table(dd1.A2)
++   w2plot = which(dd1.A2 > 0)
++   
++   net = network(A[w2plot,w2plot], vertex.attr=list(d_dhurd$gene[w2plot]), 
++                 vertex.attrnames=list("gene"), 
++                 directed = FALSE, 
++                 matrix.type="adjacency")
++   set.vertex.attribute(net,"SFARIscore", as.character(d_dhurd$SFARIscore)[w2plot])
++   net
++   
++   cbp1 = c("#E69F00", "#56B4E9", "#009E73", "#CC79A7")
++   
++   gn = ggnet2(net, color = "SFARIscore", shape = "SFARIscore", size = 3, alpha = 0.75, 
++               edge.alpha = 0.5, label = TRUE, vjust = -1, label.size=3, 
++               palette = c("0" = "#E69F00", "1" = "#56B4E9", 
++                           "2" = "#009E73", "3" = "#CC79A7"),
++               shape.palette=c("0" = 16, "1" = 17, "2" = 15, "3" = 1)) +
++     xlim(-0.12, 1.12) + ylim(-0.12,1.12) + 
++     theme( axis.text.x = element_blank(), axis.line=element_blank(), 
++            axis.text.y = element_blank(), axis.ticks=element_blank())
++   
++   pdf(sprintf("figures/ggnet_1_%s_%s_%s.pdf", ind, status, dd1$gene[i]), 
++       width=3.75, height=3)
++   print(gn)
++   dev.off()
++ }
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+There were 28 warnings (use warnings() to see them)
+> 
+> # ------------------------------------------------------------------------
+> # try to draw the network, 2 step
+> # ------------------------------------------------------------------------
+> 
+> A2 = (A %*% A > 0)
+> dim(A2)
+[1] 290 290
+> A2[1:5,1:5]
+        PTPRD GALNTL6 ERBB4 GAD1 GRIK2
+PTPRD    TRUE    TRUE  TRUE TRUE  TRUE
+GALNTL6  TRUE    TRUE  TRUE TRUE  TRUE
+ERBB4    TRUE    TRUE  TRUE TRUE  TRUE
+GAD1     TRUE    TRUE  TRUE TRUE  TRUE
+GRIK2    TRUE    TRUE  TRUE TRUE  TRUE
+> 
+> for(i in 1:nrow(dd1)){
++   dd1.A2 = A2[,match(dd1$gene[i], d_dhurd$gene)]
++   length(dd1.A2)
++   table(dd1.A2)
++   w2plot = which(dd1.A2)
++   
++   net = network(A[w2plot,w2plot], vertex.attr=list(d_dhurd$gene[w2plot]), 
++                 vertex.attrnames=list("gene"), 
++                 directed = FALSE, 
++                 matrix.type="adjacency")
++   set.vertex.attribute(net,"SFARIscore", as.character(d_dhurd$SFARIscore)[w2plot])
++   net
++   
++   cbp1 = c("#E69F00", "#56B4E9", "#009E73", "#CC79A7")
++   
++   gn = ggnet2(net, color = "SFARIscore", size = 3, alpha = 0.75, 
++          edge.alpha = 0.5, label = TRUE, vjust = -1, label.size=3, 
++          palette = c("0" = "#E69F00", "1" = "#56B4E9", 
++                      "2" = "#009E73", "3" = "#CC79A7")) +
++     xlim(-0.12, 1.12) + ylim(-0.12,1.12) + 
++     theme( axis.text.x = element_blank(), axis.line=element_blank(), 
++            axis.text.y = element_blank(), axis.ticks=element_blank())
++   
++   if(length(w2plot) < 10){
++     width = 3.75; height=3
++   }else if(length(w2plot) < 20){
++     width = 5; height=4
++   }else{
++     width = 10; height=8
++   }
++   
++   pdf(sprintf("figures/ggnet_2_%s_%s_%s.pdf", ind, status, dd1$gene[i]), 
++       width=width, height=height)
++   print(gn)
++   dev.off()
++   
++ }
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+> 
+> # ------------------------------------------------------------------------
+> # try to draw the network for SFAR
+> # ------------------------------------------------------------------------
+> 
+> w.SFAR = which(d_dhurd$SFARIscore_numeric>0)
+> 
+> net = network(A[w.SFAR,w.SFAR], vertex.attr=list(d_dhurd$gene[w.SFAR]), 
++               vertex.attrnames=list("gene"), 
++               directed = FALSE, 
++               matrix.type="adjacency")
+> set.vertex.attribute(net,"SFARIscore", as.character(d_dhurd$SFARIscore)[w.SFAR])
+> net
+ Network attributes:
+  vertices = 61 
+  directed = FALSE 
+  hyper = FALSE 
+  loops = FALSE 
+  multiple = FALSE 
+  bipartite = FALSE 
+  total edges= 61 
+    missing edges= 0 
+    non-missing edges= 61 
+
+ Vertex attribute names: 
+    gene SFARIscore vertex.names 
+
+No edge attributes
+> 
+> cbp1 = c("#E69F00", "#56B4E9", "#009E73", "#CC79A7")
+> 
+> gn = ggnet2(net, color = "SFARIscore", size = 3, alpha = 0.75, 
++             edge.alpha = 0.5, label = TRUE, vjust = -1, label.size=2.5, 
++             palette = c("0" = "#E69F00", "1" = "#56B4E9", 
++                         "2" = "#009E73", "3" = "#CC79A7")) +
++   xlim(-0.12, 1.12) + ylim(-0.12,1.12) + 
++   theme( axis.text.x = element_blank(), axis.line=element_blank(), 
++          axis.text.y = element_blank(), axis.ticks=element_blank())
+Scale for 'x' is already present. Adding another scale for 'x', which will
+replace the existing scale.
+Scale for 'y' is already present. Adding another scale for 'y', which will
+replace the existing scale.
+> 
+> pdf(sprintf("figures/ggnet_SFAR_genes_%s_%s.pdf", ind, status), 
++     width=6, height=4.75)
+> print(gn)
+> dev.off()
+null device 
+          1 
+> 
+> gc()
+          used (Mb) gc trigger (Mb) limit (Mb) max used (Mb)
+Ncells  927952 49.6    1868327 99.8         NA  1868327 99.8
+Vcells 1867042 14.3    8388608 64.0      32768  3800925 29.0
+> 
+> sessionInfo()
+R version 3.6.2 (2019-12-12)
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+Running under: macOS Catalina 10.15.5
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRblas.0.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] sna_2.5              statnet.common_4.3.0 network_1.16.0      
+[4] GGally_2.0.0         ggpubr_0.2.5         magrittr_1.5        
+[7] ggplot2_3.3.1        data.table_1.12.8   
+
+loaded via a namespace (and not attached):
+ [1] Rcpp_1.0.3         pillar_1.4.3       compiler_3.6.2     RColorBrewer_1.1-2
+ [5] plyr_1.8.5         digest_0.6.23      lifecycle_0.2.0    tibble_3.0.1      
+ [9] gtable_0.3.0       lattice_0.20-38    pkgconfig_2.0.3    rlang_0.4.6       
+[13] ggsci_2.9          coda_0.19-3        withr_2.1.2        dplyr_0.8.4       
+[17] vctrs_0.3.0        grid_3.6.2         tidyselect_1.0.0   cowplot_1.0.0     
+[21] reshape_0.8.8      glue_1.3.1         R6_2.4.1           purrr_0.3.3       
+[25] tidyr_1.0.2        farver_2.0.3       scales_1.1.0       ellipsis_0.3.0    
+[29] assertthat_0.2.1   colorspace_1.4-1   ggsignif_0.6.0     labeling_0.3      
+[33] munsell_0.5.0      crayon_1.3.4      
+> q(save="no")
+> proc.time()
+   user  system elapsed 
+ 10.387   0.308  10.483 

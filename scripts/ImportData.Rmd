@@ -1,0 +1,107 @@
+---
+title: "Import scRNA Data"
+author: "Jianyu Liu"
+date: "November 28, 2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r, echo=F}
+library(HUG)
+```
+
+
+This document describes how I import and preprocess scRNA-seq data and others for the paper.
+
+# scRNA-seq Data
+## Tirosh Data
+Paper: Dissecting the multicellular ecosystem of metastatic melanoma by single-cell RNA-seq
+Source: <https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE72056>
+Raw data file: GSE72056_melanoma_single_cell_revised_v2.txt
+Size: 4,645 cells * 23,682 genes
+Technique: Smart-seq2
+
+```{r tirosh}
+des.tirosh = t(read.table('Data/GSE72056_melanoma_single_cell_revised_v2.txt', nrows=4, as.is=T))
+colnames(des.tirosh) = c('cell', 'tumor', 'malignancy', 'cell_type')
+des.tirosh = data.frame(des.tirosh[-1,])
+des.tirosh$cell = as.character(des.tirosh$cell)
+des.tirosh$tumor = as.integer(as.character(des.tirosh$tumor))
+levels(des.tirosh$malignancy) = c('unresolved', 'non-malignant', 'malignant')
+levels(des.tirosh$cell_type) = c('potentially_malignant', 'T', 'B', 'Macro', 'Endo', 'CAF', 'NK')
+
+dat.tirosh = read.table('Data/GSE72056_melanoma_single_cell_revised_v2.txt', skip=4, as.is=T)
+# remove duplicate gene (?) nmaes
+dat.tirosh = dat.tirosh[!(dat.tirosh[,1] %in% names(which(table(dat.tirosh[,1]) > 1))),]
+rownames(dat.tirosh) = dat.tirosh[,1]
+colnames(dat.tirosh) = des.tirosh$cell
+dat.tirosh = Matrix(t(dat.tirosh[,-1]))
+dat.tirosh = dat.tirosh[,colMeans(dat.tirosh!=0) > .05]
+mean(dat.tirosh == 0)
+save(dat.tirosh, des.tirosh, file='Data/Tirosh2016_raw.rData')
+```
+
+
+## Gierahn Data
+Paper: Seq-Well: A portable, low-cost platform for single-cell RNA-seq of low-input samples
+Source: <https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE92495>
+Raw data file: GSE92495_RAW.tar/GSM2486331_HEK_SingleCells.txt
+Size: 1,453 cells * 24,187 genes
+Technique: Seq-Well based on 
+
+```{r gierahn}
+dat.gierahn = read.table('Data/GSM2486331_HEK_SingleCells.txt')
+dat.gierahn = Matrix(t(dat.gierahn))
+ix.gierahn = as.factor(sapply(strsplit(rownames(dat.gierahn), '_'), `[`, 1))
+mean(dat.gierahn == 0)
+save(dat.gierahn, ix.gierahn, file='Data/Gierahn2017_raw.rData')
+```
+
+
+# Benchmark Graph
+```{r benchmark}
+conns = read.table('Data/PathwayCommons9.All.hgnc.sif', header=F, as.is=T)
+genes = unique(c(conns$V1, conns$V3))
+rel = unique(conns$V2)
+p = length(genes)
+
+conns$V1 = as.integer(factor(conns$V1, levels=genes))
+conns$V3 = as.integer(factor(conns$V3, levels=genes))
+
+rels.gene = foreach(k=rel) %do% with(conns[conns$V2==k,], 
+                                     sparseMatrix(i=V1, j=V3, x=T, dims=c(p, p), dimnames=list(genes, genes)))
+conns.gene = lapply(rels.gene, function(x) x | t(x))
+conn.gene = Reduce('|', conns.gene)
+save(conn.gene, file='Data/PathwayCommons9.rData')
+```
+
+# Gene Lists
+We create a list of genes that are expressed in >= 30% of the cells in both datasets. Moreover, we remove RPS- and RPL-genes because they correspond to a misleading dense sub-graph in the benchmark.
+
+```{r gene1960}
+genes = Reduce(intersect, lapply(list(dat.gierahn, dat.tirosh, conn.gene), colnames))
+nz.gierahn = colMeans(dat.gierahn[,genes] >= .5)
+nz.tirosh = colMeans(dat.tirosh[,genes] >= .5)
+
+genes.tmp = genes[startsWith(genes, 'RPL') | startsWith(genes, 'RPS')]
+image.matrix(conn.gene[genes.tmp, genes.tmp])
+genes.now = genes[(nz.gierahn >= .3) & (nz.tirosh >= .3) &
+                      !(startsWith(genes, 'RPL') | startsWith(genes, 'RPS'))]
+save(genes.now, file='genes_1960.rData')
+```
+
+We also create a list of RB-related genes based on the C6 database. 
+```{r geneRB}
+name.pathway = c("RB_DN.V1_DN", "RB_DN.V1_UP", "RB_P107_DN.V1_DN", "RB_P107_DN.V1_UP", 
+                 "RB_P130_DN.V1_DN", "RB_P130_DN.V1_UP")
+pathways = list()
+for (i in 1:189) {
+    txt.i = scan("Data/c6.all.v5.2.symbols.gmt.txt", quiet = TRUE, 
+                 skip = i-1, nlines = 1, what = character())
+    pathways[[txt.i[1]]] = txt.i[-(1:2)]
+}
+paths.RB = pathways[name.pathway]
+genes.RB = Reduce(union, gene.lists0) # 2354 genes
+save(genes.RB, paths.RB, file='genes_RB.rData')
+```
