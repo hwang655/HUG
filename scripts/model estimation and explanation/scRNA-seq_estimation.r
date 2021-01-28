@@ -15,7 +15,7 @@ for(rel.index in c(1,7)){
     #ImportData
     load('Data/relation_12.rData')
     load(paste0('Data/pathwayCommons12_',rel[rel.index],'.rData'))
-    names.data=c(paste0('Velmeshev/genes_Velmeshev_',name.people[index.people],'_5cluster'))
+    names.data=c(paste0('Data/genes_Velmeshev_',name.people[index.people],'_5cluster'))
     name = paste0('Velmeshev_',name.people[index.people])
     if (name.people[index.people]=="gierahn"){
       load(paste0('Data/Gierahn2017_raw.rData'))
