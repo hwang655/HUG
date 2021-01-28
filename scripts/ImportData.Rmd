@@ -15,31 +15,55 @@ library(HUG)
 This document describes how I import and preprocess scRNA-seq data and others for the paper.
 
 # scRNA-seq Data
-## Tirosh Data
-Paper: Dissecting the multicellular ecosystem of metastatic melanoma by single-cell RNA-seq
-Source: <https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE72056>
-Raw data file: GSE72056_melanoma_single_cell_revised_v2.txt
-Size: 4,645 cells * 23,682 genes
-Technique: Smart-seq2
+## Velmeshev Data
+Paper:  Single-cell genomics identifies cell type–specific molecular changes in autism
+Source: <https://cells.ucsc.edu/autism/rawMatrix.zip>
+Raw data file: ```barcodes.tsv``` saves barcode information, ```genes.tsv``` saves gene information, and ```matrix.mtx``` saves the count data in MatrixMarket format
+Technique: function ```read10xCounts``` from R package ```DropletUtils```
 
-```{r tirosh}
-des.tirosh = t(read.table('Data/GSE72056_melanoma_single_cell_revised_v2.txt', nrows=4, as.is=T))
-colnames(des.tirosh) = c('cell', 'tumor', 'malignancy', 'cell_type')
-des.tirosh = data.frame(des.tirosh[-1,])
-des.tirosh$cell = as.character(des.tirosh$cell)
-des.tirosh$tumor = as.integer(as.character(des.tirosh$tumor))
-levels(des.tirosh$malignancy) = c('unresolved', 'non-malignant', 'malignant')
-levels(des.tirosh$cell_type) = c('potentially_malignant', 'T', 'B', 'Macro', 'Endo', 'CAF', 'NK')
+```{r Velmeshev}
+data.dir = "Data/autism"
+sce      = read10xCounts(file.path(data.dir, "rawMatrix"), col.names=TRUE)
+cell_info = fread(file.path(data.dir, "meta.tsv"))
+colData(sce) = cbind(colData(sce), cell_info)
+is.mito = which(rowData(sce)$chromosome_name == "MT")
+is.ribo = which(rowData(sce)$hgnc_symbol %in% ribo$'Approved Symbol')
+sce = calculateQCMetrics(sce, feature_controls=list(Mt=is.mito, Ri=is.ribo))
+names(rowData(sce))[6] = "strand_n"
+sce = sce[which(rowData(sce)$n_cells_by_counts >= 0.01*ncol(sce)),]
+u.regions  = unique(colData(sce)$region)
+u.clusters = unique(colData(sce)$cluster)
 
-dat.tirosh = read.table('Data/GSE72056_melanoma_single_cell_revised_v2.txt', skip=4, as.is=T)
-# remove duplicate gene (?) nmaes
-dat.tirosh = dat.tirosh[!(dat.tirosh[,1] %in% names(which(table(dat.tirosh[,1]) > 1))),]
-rownames(dat.tirosh) = dat.tirosh[,1]
-colnames(dat.tirosh) = des.tirosh$cell
-dat.tirosh = Matrix(t(dat.tirosh[,-1]))
-dat.tirosh = dat.tirosh[,colMeans(dat.tirosh!=0) > .05]
-mean(dat.tirosh == 0)
-save(dat.tirosh, des.tirosh, file='Data/Tirosh2016_raw.rData')
+data.dir = "Data/autism"
+for(r1 in u.regions){
+  cond1 = colData(sce)$region == r1
+  for(cls1 in u.clusters){
+    cond2 = colData(sce)$cluster == cls1
+    ct1   = counts(sce[,which(cond1 & cond2)])
+    cls2  = gsub("/", "_", cls1)
+    fnm   = sprintf("%s_%s.rds", r1, cls2)
+    saveRDS(ct1, file=file.path(data.dir, "ct_mtx", fnm))
+  }
+}
+names = c("L2_3","IN-VIP","IN-SV2C","IN-SST","IN-PV")
+name.post = "PFC_"
+data.people = levels(factor(read.table("Data/autism/meta.tsv",sep = '\t',header = TRUE)$individual))
+data.save = vector("list",length(data.people)+1)
+gene.num = nrow(as.matrix(readRDS(paste0("Data/autism/ct_mtx/",name.post,names[1],".rds"))))
+names(data.save) = c(data.people,"all")
+
+print(paste0("processing ",names[1]))
+data.all = t(as.matrix(readRDS(paste0("Data/autism/ct_mtx/",name.post,names[1],".rds"))))
+
+for (i in 2:length(names)){
+  print(paste0("processing ",names[i]))
+  data.now = t(as.matrix(readRDS(paste0("Data/autism/ct_mtx/",name.post,names[i],".rds"))))
+  data.all = rbind(data.all,data.now)
+  print(paste0(i,"/",length(names)," dataset complete"))
+}
+save(data.all,file = paste0("Data/autism/ct_mtx/","Velmeshev_all.rData"))
+
+
 ```
 
 
