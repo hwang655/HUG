@@ -1,7 +1,7 @@
 ---
 title: "Import scRNA Data"
-author: "Jianyu Liu"
-date: "November 28, 2018"
+author: "Jianyu Liu", "Haodong Wang"
+date: "January 20, 2021"
 output:
   pdf_document: default
   html_document: default
@@ -9,6 +9,7 @@ output:
 
 ```{r, echo=F}
 library(HUG)
+library(DropletUtils)
 ```
 
 
@@ -51,19 +52,17 @@ data.people = levels(factor(read.table("Data/autism/meta.tsv",sep = '\t',header 
 data.save = vector("list",length(data.people)+1)
 gene.num = nrow(as.matrix(readRDS(paste0("Data/autism/ct_mtx/",name.post,names[1],".rds"))))
 names(data.save) = c(data.people,"all")
-
-print(paste0("processing ",names[1]))
-data.all = t(as.matrix(readRDS(paste0("Data/autism/ct_mtx/",name.post,names[1],".rds"))))
-
-for (i in 2:length(names)){
-  print(paste0("processing ",names[i]))
+data.all = NULL
+for (i in 1:length(names)){
   data.now = t(as.matrix(readRDS(paste0("Data/autism/ct_mtx/",name.post,names[i],".rds"))))
   data.all = rbind(data.all,data.now)
-  print(paste0(i,"/",length(names)," dataset complete"))
 }
-save(data.all,file = paste0("Data/autism/ct_mtx/","Velmeshev_all.rData"))
-
-
+data.people = c("4341","5278", "5531","5958")
+for (j in 1:length(data.people)){
+  index = grep(data.people[j],row.names(data.all))
+  data.save = data.all[index,]
+  save(data.save,file = paste0("Data/autism/genes_Velmeshev_",data.people[j],"_5cluster.rData"))
+}
 ```
 
 
