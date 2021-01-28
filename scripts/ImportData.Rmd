@@ -84,7 +84,7 @@ save(dat.gierahn, ix.gierahn, file='Data/Gierahn2017_raw.rData')
 
 # Benchmark Graph
 ```{r benchmark}
-conns = read.table('Data/PathwayCommons9.All.hgnc.sif', header=F, as.is=T)
+conns = read.table('Data/PathwayCommons12.All.hgnc.sif', header=F, as.is=T)
 genes = unique(c(conns$V1, conns$V3))
 rel = unique(conns$V2)
 p = length(genes)
@@ -96,35 +96,20 @@ rels.gene = foreach(k=rel) %do% with(conns[conns$V2==k,],
                                      sparseMatrix(i=V1, j=V3, x=T, dims=c(p, p), dimnames=list(genes, genes)))
 conns.gene = lapply(rels.gene, function(x) x | t(x))
 conn.gene = Reduce('|', conns.gene)
-save(conn.gene, file='Data/PathwayCommons9.rData')
+save(conn.gene, file='Data/PathwayCommons12.rData')
 ```
 
 # Gene Lists
 We create a list of genes that are expressed in >= 30% of the cells in both datasets. Moreover, we remove RPS- and RPL-genes because they correspond to a misleading dense sub-graph in the benchmark.
 
 ```{r gene1960}
-genes = Reduce(intersect, lapply(list(dat.gierahn, dat.tirosh, conn.gene), colnames))
+genes = Reduce(intersect, lapply(list(dat.gierahn, data.all, conn.gene), colnames))
 nz.gierahn = colMeans(dat.gierahn[,genes] >= .5)
-nz.tirosh = colMeans(dat.tirosh[,genes] >= .5)
+nz.vel = colMeans(data.all[,genes] >= .5)
 
 genes.tmp = genes[startsWith(genes, 'RPL') | startsWith(genes, 'RPS')]
 image.matrix(conn.gene[genes.tmp, genes.tmp])
-genes.now = genes[(nz.gierahn >= .3) & (nz.tirosh >= .3) &
+genes.now = genes[(nz.gierahn >= .3) & (nz.vel >= .3) &
                       !(startsWith(genes, 'RPL') | startsWith(genes, 'RPS'))]
 save(genes.now, file='genes_1960.rData')
-```
-
-We also create a list of RB-related genes based on the C6 database. 
-```{r geneRB}
-name.pathway = c("RB_DN.V1_DN", "RB_DN.V1_UP", "RB_P107_DN.V1_DN", "RB_P107_DN.V1_UP", 
-                 "RB_P130_DN.V1_DN", "RB_P130_DN.V1_UP")
-pathways = list()
-for (i in 1:189) {
-    txt.i = scan("Data/c6.all.v5.2.symbols.gmt.txt", quiet = TRUE, 
-                 skip = i-1, nlines = 1, what = character())
-    pathways[[txt.i[1]]] = txt.i[-(1:2)]
-}
-paths.RB = pathways[name.pathway]
-genes.RB = Reduce(union, gene.lists0) # 2354 genes
-save(genes.RB, paths.RB, file='genes_RB.rData')
 ```
