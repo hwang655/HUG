@@ -10,8 +10,8 @@ cl<-makeSOCKcluster(12)
 registerDoSNOW(cl)
 name.people=c("4341","5278", "5531","5958","gierahn")
 rel.index=7
-for(rel.index in c(7,1)){
-  for (index.people in 5:5){
+for(rel.index in 1:7){
+  for (index.people in 1:5){
     #ImportData
     load('Data/relation_12.rData')
     load(paste0('Data/pathwayCommons12_',rel[rel.index],'.rData'))
