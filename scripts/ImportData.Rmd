@@ -99,17 +99,3 @@ conn.gene = Reduce('|', conns.gene)
 save(conn.gene, file='Data/PathwayCommons12.rData')
 ```
 
-# Gene Lists
-We create a list of genes that are expressed in >= 30% of the cells in both datasets. Moreover, we remove RPS- and RPL-genes because they correspond to a misleading dense sub-graph in the benchmark.
-
-```{r gene1960}
-genes = Reduce(intersect, lapply(list(dat.gierahn, data.all, conn.gene), colnames))
-nz.gierahn = colMeans(dat.gierahn[,genes] >= .5)
-nz.vel = colMeans(data.all[,genes] >= .5)
-
-genes.tmp = genes[startsWith(genes, 'RPL') | startsWith(genes, 'RPS')]
-image.matrix(conn.gene[genes.tmp, genes.tmp])
-genes.now = genes[(nz.gierahn >= .3) & (nz.vel >= .3) &
-                      !(startsWith(genes, 'RPL') | startsWith(genes, 'RPS'))]
-save(genes.now, file='genes_1960.rData')
-```
