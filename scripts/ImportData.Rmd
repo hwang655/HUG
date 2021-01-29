@@ -27,9 +27,6 @@ data.dir = "Data/autism"
 sce      = read10xCounts(file.path(data.dir, "rawMatrix"), col.names=TRUE)
 cell_info = fread(file.path(data.dir, "meta.tsv"))
 colData(sce) = cbind(colData(sce), cell_info)
-is.mito = which(rowData(sce)$chromosome_name == "MT")
-is.ribo = which(rowData(sce)$hgnc_symbol %in% ribo$'Approved Symbol')
-sce = calculateQCMetrics(sce, feature_controls=list(Mt=is.mito, Ri=is.ribo))
 names(rowData(sce))[6] = "strand_n"
 sce = sce[which(rowData(sce)$n_cells_by_counts >= 0.01*ncol(sce)),]
 u.regions  = unique(colData(sce)$region)
